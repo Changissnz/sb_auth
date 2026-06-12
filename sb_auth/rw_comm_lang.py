@@ -1,16 +1,12 @@
-import os
+"""
+read/write operations for Seqbuild's Comm Lang language. 
+"""
 import re
 import websockets
 import asyncio
-from seqbuild.face import comm_lang 
-
-base_dir = os.path.dirname(os.path.abspath(__file__))
-
-USER_DIR = os.path.join(base_dir, "user_data")
-os.makedirs(USER_DIR, exist_ok=True)
+from .sb_op import * 
 
 DEFAULT_PORT = 8765 
-
 
 def is_alphanumeric(s):
     pattern = "^[a-zA-Z0-9]*$"
@@ -35,4 +31,3 @@ async def receive_command_file(wsock):
         fp0 = os.path.join(USER_DIR,fipath)
         with open(fp0,"w") as f: 
             f.write(msg)
-         
