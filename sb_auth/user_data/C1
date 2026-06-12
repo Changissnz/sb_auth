@@ -1,0 +1,25 @@
+set G = make lcg with 49,-34,1555,1500. 
+set V = run G for 14 iter. 
+set OT = make optri with 422,G,1,0,V.
+set V2 = run OT for 25 iter.
+
+set OT2 = make optri with 422,G,2,0,V.
+set V3 = run OT2 for 25 iter.
+
+set OT3 = make optri with 422,G,1,1,V.
+set V4 = run OT3 for 25 iter.
+
+set M2 = make multimetric with V2. 
+set X2 = run M2 with 5.
+
+set M3 = make multimetric with V3. 
+set X3 = run M3 with 5.
+
+set M4 = make multimetric with V4. 
+set X4 = run M4 with 5.
+
+set V5 = run OT3 for 25 iter.
+set V6 = run OT3 for 25 iter.
+set V7 = run OT3 for 25 iter.
+set V8 = run OT3 for 25 iter.
+set V9 = run OT3 for 25 iter.

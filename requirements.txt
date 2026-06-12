@@ -1,0 +1,8 @@
+PIL>=9.0.0
+bs4>=4.10.0
+numpy>=1.22.1
+matplotlib>=3.5.3
+scipy>=1.14.1
+morebs2>=0.1.72
+python-resources>=0.3
+seqbuild>=0.0.23
