@@ -5,6 +5,8 @@ import re
 import websockets
 import asyncio
 from .sb_op import * 
+import json 
+from morebs2.matrix_methods import vector_to_string,cr 
 
 DEFAULT_PORT = 8765 
 
@@ -12,22 +14,24 @@ def is_alphanumeric(s):
     pattern = "^[a-zA-Z0-9]*$"
     return bool(re.match(pattern, s))
 
-async def send_command_file(wsock): 
-    while True:
-        fipath = await asyncio.get_event_loop().run_in_executor(None, input, "Send command file: ")
-        outsource,insource = fipath.split(":") 
-        insource = os.path.join(USER_DIR,insource) 
-        if os.path.isfile(fipath):
-            with open(fipath, "r") as f:
-                content = f.read()
-            await wsock.send(f"{fipath}:{content}")
-            print(f"Sent file: {fipath}") 
-        else:
-            await wsock.send(fipath)
+"""
+outputs the program's conventional filename 
+for `info` (client name or server address). 
+"""
+def filename_for_CL(info,is_server_side:bool): 
+    assert type(is_server_side) == bool
 
-async def receive_command_file(wsock):
-    async for message in wsock:
-        fipath,msg = message.split(":") 
-        fp0 = os.path.join(USER_DIR,fipath)
-        with open(fp0,"w") as f: 
-            f.write(msg)
+    if is_server_side: 
+        return "client__" + info + ".txt" 
+    
+    q = info.split(".")
+    assert len(q) == 4 
+
+    q1 = q[-1].split(":") 
+    assert len(q1) == 2 
+
+    q[-1] = q1[0] 
+    q1 = q1[1] 
+
+    s = "_".join(q) 
+    return "server__" + s + "-" + q1 + ".txt" 

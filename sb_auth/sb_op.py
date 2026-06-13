@@ -1,5 +1,6 @@
 from .usr_table import * 
-from seqbuild.face import comm_lang 
+from seqbuild.face.comm_lang import *  
+from morebs2.matrix_methods import is_number 
 
 # DEFAULT VARIABLES  
 PROHIBITED_COMMLANG_COMMANDS = {"load","show","chaintest","qualtest","open"} 
@@ -10,7 +11,7 @@ DEFAULT_SB_SKIPSIZE_RANGE = [0,3]
 """
 checks if file abides by constrained Comm Lang rules. 
 """
-def verify_CommLang_file(f):
+def verify_CommLang_file(f,gen_name):
     if not os.path.isfile(f): return False 
 
     clp = CommLangParser(f)
@@ -29,14 +30,44 @@ def verify_CommLang_file(f):
         clp.process_command() 
         clp.check_finstat() 
 
-    return True 
+    clp.close() 
 
-# TODO: 
-def process_CommLang_generator(f,generator_name):  
+    try: 
+        stat = process_CommLang_generator(f,gen_name,0)
+        return stat  
+    except: 
+        return False
+
+# TODO:
+'''
+if num_iter = 0: checks generator first 50 outputs are real numbers. 
+otherwise: outputs `num_iter` values 
+'''  
+def process_CommLang_generator(f,generator_name,num_iter=0):   
     assert os.path.isfile(f) 
+    assert num_iter >= 0 
 
+    excluded_types = {complex,np.complex64,np.complex128}
+    def vfunc(G_): 
+        for _ in range(50): 
+            try: 
+                x = G() 
+                stat = is_number(x,excluded_types)
+                if not stat: return False 
+            except: 
+                return False 
+        return True 
+
+    def nfunc(G_):
+        return [float(round(G_(),5)) for _ in range(num_iter)] 
+
+    F = vfunc if num_iter == 0 else nfunc 
     clp = CommLangParser(f) 
 
     clp.process_file() 
-    assert generator_name in clp.vartable
-    assert False 
+    assert generator_name in clp.vartable 
+
+    G = clp.vartable[generator_name]
+    assert type(G) in {FunctionType,MethodType} 
+
+    return F(G)

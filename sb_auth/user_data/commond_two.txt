@@ -1,0 +1,6 @@
+set G = make lcg with 67,43,-87,899. 
+set V = run G for 20 iter. 
+set M = make mdr with V. 
+set X0 = run M with 300. 
+set X1 = run M with 47. 
+set X2 = run M with 693.  
