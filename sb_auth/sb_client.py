@@ -10,8 +10,11 @@ class SBAuthClient:
         return
 
     async def contact(self): 
-        s = str(input("enter in IP address: ")) 
-        s1 = str(input("enter in port number: ")) 
+        s = await asyncio.get_running_loop().run_in_executor(None, \
+            input, "enter in IP address: ")
+        s1 = await asyncio.get_running_loop().run_in_executor(None, \
+            input, "enter in port number: ")
+
         self.addr = s + ":" + s1 
         server = "ws://" + self.addr 
         await self.act(server)  
@@ -19,7 +22,8 @@ class SBAuthClient:
     async def act(self,server):  
         async with websockets.connect(server) as wsock:
             print("Connected to server!")
-            await asyncio.gather(self.recv(wsock), self.send(wsock)) 
+            while True: 
+                await self.recv(wsock)
 
     async def recv(self,wsock): 
         async for message in wsock:
@@ -45,10 +49,10 @@ class SBAuthClient:
                 response = await self.login(wsock)
                 continue 
 
-
-
     async def login(self,wsock): 
         s = input("[x] ") 
+        s = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
+
         await wsock.send(s) 
         self.user_idn = s 
         response = await wsock.recv()
@@ -58,7 +62,7 @@ class SBAuthClient:
 
         # case: new user 
         if response == "new username:": 
-            s2 = input("[x] ")
+            s2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
             await wsock.send(s2) 
             self.user_idn = s2 
             response = wsock.recv()
@@ -66,7 +70,7 @@ class SBAuthClient:
         # case: username does not exist. 
         elif q[-2] == ["try","again!"]:
             print("Username does not exist. Please try again.")
-            s2 = input("[x] ")
+            s2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
             response = await wsock.send(s2) 
         # case: provide the key 
         elif q[:4] == ["enter","in","your","key"]:  
@@ -75,9 +79,6 @@ class SBAuthClient:
             await self.send_passwd(wsock,num_iter)
 
         return response
-
-    async def send(self,wsock):
-        return
 
     def write_key_to_file(self,cl_string,gen_name):   
         user_str = filename_for_CL(self.addr,False) 
