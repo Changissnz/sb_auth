@@ -77,6 +77,10 @@ class SBAuthServer:
         
         # case: not new user, check for existence in user directory 
         else: 
+            if user_idn in PROHIBITED_SB_AUTH_NAMES: 
+                await wsock.send("[!] name {} is prohibited".format(user_idn)) 
+                return "",False,False 
+
             if self.utable.user_exists(user_idn) and is_new_user:  
                 print("USER {} DOES NOT EXIST.")
                 await wsock.send("[!] username already exists. try again.") 
