@@ -7,6 +7,8 @@ class SBAuthClient:
         self.user_idn = None 
         self.utable = UserTable(False) 
         self.is_new_user = False 
+
+        self.finstat = False 
         return
 
     async def contact(self): 
@@ -22,7 +24,7 @@ class SBAuthClient:
     async def act(self,server):  
         async with websockets.connect(server) as wsock:
             print("Connected to server!")
-            while True: 
+            while not self.finstat:  
                 await self.recv(wsock)
 
     async def recv(self,wsock): 
@@ -41,7 +43,10 @@ class SBAuthClient:
                 if message[0].strip() == "COMM LANG": 
                     gen_name = message[1] 
                     cl_string = message[2] 
-                    self.write_key_to_file(cl_string,gen_name)
+                    stat = self.write_key_to_file(cl_string,gen_name)
+                    if not stat: 
+                        self.finstat = True 
+                        return 
                     continue 
 
             # case: initial login 
@@ -90,8 +95,12 @@ class SBAuthClient:
         fobj.write(cl_string) 
         fobj.close() 
 
-        self.utable.add_user(self.addr,user_str,gen_name) 
-        return 
+        try: 
+            self.utable.add_user(self.addr,user_str,gen_name) 
+        except: 
+            print("key already present for server/port.") 
+            return False 
+        return True 
 
     async def send_passwd(self,wsock,num_iter):  
         fp = filename_for_CL(self.addr,False)  
