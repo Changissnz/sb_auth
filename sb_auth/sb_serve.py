@@ -163,7 +163,7 @@ class SBAuthServer:
 
     async def ask(self,wsock): 
         op = await self.ask_for_op(wsock) 
-        await conduct_op(op) 
+        await self.conduct_op(wsock,op) 
 
     async def ask_for_op(self,wsock): 
         op = None 
@@ -174,6 +174,7 @@ class SBAuthServer:
             if q not in {"r","w"}: 
                 await wsock.send("[!] wrong input. try again.") 
             else: 
+                print("gotem") 
                 await wsock.send(".") 
                 op = q 
         return op 
@@ -191,7 +192,7 @@ class SBAuthServer:
                     continue 
 
                 await wsock.send("file {} does exist".format(q)) 
-                
+
                 with open(q,'r') as f: 
                     content = f.read() 
                 await wsock.send("{}".format(content)) 

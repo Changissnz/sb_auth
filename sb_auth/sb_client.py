@@ -111,15 +111,16 @@ class SBAuthClient:
             q = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
             await wsock.send(q)  
             s = await wsock.recv()
+            print(s) 
 
             if s == ".": 
                 q0 = q 
                 break 
-            print(s) 
 
         q = self.r_ops if q0 == "r" else self.w_ops 
 
-        while True: 
+        stat = False 
+        while not stat:  
             stat = await q(wsock) 
         
         return q0 
