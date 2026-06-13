@@ -181,15 +181,14 @@ class SBAuthServer:
 
     async def conduct_op(self,wsock,op): 
         assert op in {"r","w"} 
-
         if op == "r": 
             while True: 
-                await wsock.send("filepath for reading?") 
                 q = await wsock.recv() 
+                await wsock.send("filepath for reading?") 
                 
                 if not os.path.isfile(q): 
                     await wsock.send("file {} does not exist".format(q)) 
-                    continue 
+                    continue   
 
                 await wsock.send("file {} does exist".format(q)) 
 

@@ -136,6 +136,7 @@ class SBAuthClient:
 
     async def r_ops(self,wsock): 
         fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
+        await wsock.send(fpath) 
         stat = await wsock.recv()
 
         stat_ = stat.split(" ") 
