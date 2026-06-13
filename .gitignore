@@ -1,2 +1,4 @@
 scratch*.py
 __pycache__
+user_dir 
+.gitignore 

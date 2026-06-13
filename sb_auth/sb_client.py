@@ -49,8 +49,10 @@ class SBAuthClient:
                 response = await self.login(wsock)
                 continue 
 
+            elif message.strip() == "read (r) or write (w)?":
+                await self.rw_ops(wsock) 
+
     async def login(self,wsock): 
-        s = input("[x] ") 
         s = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
 
         await wsock.send(s) 
@@ -99,6 +101,49 @@ class SBAuthClient:
         self.utable.update_user(self.addr,num_iter)
         s = vector_to_string(q,cr)
         await wsock.send(s) 
+
+    #------------------------------- post login 
+
+    async def rw_ops(self,wsock): 
+        # read/write
+        q0 = None  
+        while True: 
+            q = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
+            await wsock.send(q)  
+            s = await wsock.recv()
+
+            if s == ".": 
+                q0 = q 
+                break 
+            print(s) 
+
+        q = self.r_ops if q0 == "r" else self.w_ops 
+
+        while True: 
+            stat = await q(wsock) 
+        
+        return q0 
+
+    async def r_ops(self,wsock): 
+        fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
+        stat = await wsock.recv()
+
+        stat_ = stat.split(" ") 
+
+        # does not exist 
+        if stat_[-3:] == ["does","not","exist"]: 
+            return False 
+
+        contents = await wsock.recv() 
+
+        fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] write out path? ") 
+        
+        try: 
+            with open(fpath2,"w") as f: 
+                f.write(contents) 
+        except: 
+            return False 
+        return True 
 
 sbc = SBAuthClient()
 asyncio.run(sbc.contact()) 

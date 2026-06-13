@@ -169,11 +169,12 @@ class SBAuthServer:
         op = None 
         while type(op) == type(None): 
             await wsock.send("read (r) or write (w)? ") 
-            q = wsock.recv() 
+            q = await wsock.recv() 
             q = q.lower() 
             if q not in {"r","w"}: 
                 await wsock.send("[!] wrong input. try again.") 
             else: 
+                await wsock.send(".") 
                 op = q 
         return op 
 
@@ -183,12 +184,14 @@ class SBAuthServer:
         if op == "r": 
             while True: 
                 await wsock.send("filepath for reading?") 
-                q = wsock.recv() 
+                q = await wsock.recv() 
                 
                 if not os.path.isfile(q): 
                     await wsock.send("file {} does not exist".format(q)) 
                     continue 
 
+                await wsock.send("file {} does exist".format(q)) 
+                
                 with open(q,'r') as f: 
                     content = f.read() 
                 await wsock.send("{}".format(content)) 
@@ -197,12 +200,12 @@ class SBAuthServer:
             write_over = False 
             while True: 
                 await wsock.send("filepath for writing?") 
-                q = wsock.recv() 
+                q = await wsock.recv() 
 
                 if os.path.isfile(q) and not write_over:  
                     while True: 
                         await wsock.send("file {} already exists. proceed (y) or new file (n)?".format(q)) 
-                        q = wsock.recv() 
+                        q = await wsock.recv() 
 
                         q = q.lower() 
 
@@ -216,7 +219,7 @@ class SBAuthServer:
                         break 
                         
                 await wsock.send("send your content now") 
-                content = wsock.recv() 
+                content = await wsock.recv() 
                 with open(q,"w") as f: 
                     f.write(content) 
 
