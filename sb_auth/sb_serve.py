@@ -184,22 +184,23 @@ class SBAuthServer:
         if op == "r": 
             while True: 
                 q = await wsock.recv() 
-                await wsock.send("filepath for reading?") 
+                ##await wsock.send("filepath for reading?") 
                 
                 if not os.path.isfile(q): 
                     await wsock.send("file {} does not exist".format(q)) 
                     continue   
 
-                await wsock.send("file {} does exist".format(q)) 
+                #await wsock.send("file {} does exist".format(q)) 
 
                 with open(q,'r') as f: 
                     content = f.read() 
-                await wsock.send("{}".format(content)) 
+                msg = ["True",content] 
+                await wsock.send(json.dumps(msg))  
                 break 
         else: 
             write_over = False 
             while True: 
-                await wsock.send("filepath for writing?") 
+                #await wsock.send("filepath for writing?") 
                 q = await wsock.recv() 
 
                 if os.path.isfile(q) and not write_over:  

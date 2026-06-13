@@ -139,13 +139,13 @@ class SBAuthClient:
         await wsock.send(fpath) 
         stat = await wsock.recv()
 
-        stat_ = stat.split(" ") 
-
-        # does not exist 
-        if stat_[-3:] == ["does","not","exist"]: 
+        contents = None 
+        try: 
+            q = json.loads(stat) 
+            contents = q[1] 
+        except: 
+            print(stat) 
             return False 
-
-        contents = await wsock.recv() 
 
         fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] write out path? ") 
         
