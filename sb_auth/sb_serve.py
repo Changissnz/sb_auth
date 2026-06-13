@@ -16,7 +16,6 @@ class SBAuthServer:
         async with websockets.serve(self.one_step, "0.0.0.0", DEFAULT_PORT):
             print("Server listening on port 8765...")
             await asyncio.Future()  # run forever
-            print("VUN") 
 
     async def one_step(self,wsock): 
         while True: 
@@ -45,11 +44,7 @@ class SBAuthServer:
             await self.verify_user(wsock,user_idn,is_new_user) 
             self.socket2user[wsock] = user_idn 
         else: 
-            async for message in wsock:                
-                fipath,msg = message.split(":") 
-                fp0 = os.path.join(DEFAULT_SB_USER_DIR,fipath)
-                with open(fp0,"w") as f: 
-                    sf.write(msg)
+            await self.ask(wsock) 
 
     #--------------------------------- for client logging in 
 
@@ -162,6 +157,68 @@ class SBAuthServer:
         q = ["COMM LANG",gen_name,content]
         await wsock.send(json.dumps(q))  
         return
+
+    #------------------------------- for post-login  
+    # NOTE: rough draft 
+
+    async def ask(self,wsock): 
+        op = await self.ask_for_op(wsock) 
+        await conduct_op(op) 
+
+    async def ask_for_op(self,wsock): 
+        op = None 
+        while type(op) == type(None): 
+            await wsock.send("read (r) or write (w)? ") 
+            q = wsock.recv() 
+            q = q.lower() 
+            if q not in {"r","w"}: 
+                await wsock.send("[!] wrong input. try again.") 
+            else: 
+                op = q 
+        return op 
+
+    async def conduct_op(self,wsock,op): 
+        assert op in {"r","w"} 
+
+        if op == "r": 
+            while True: 
+                await wsock.send("filepath for reading?") 
+                q = wsock.recv() 
+                
+                if not os.path.isfile(q): 
+                    await wsock.send("file {} does not exist".format(q)) 
+                    continue 
+
+                with open(q,'r') as f: 
+                    content = f.read() 
+                await wsock.send("{}".format(content)) 
+                break 
+        else: 
+            write_over = False 
+            while True: 
+                await wsock.send("filepath for writing?") 
+                q = wsock.recv() 
+
+                if os.path.isfile(q) and not write_over:  
+                    while True: 
+                        await wsock.send("file {} already exists. proceed (y) or new file (n)?".format(q)) 
+                        q = wsock.recv() 
+
+                        q = q.lower() 
+
+                        if q not in {"y","n"}: 
+                            await wsock.send("invalid input. try again.") 
+                            continue 
+
+                        if q == "y": 
+                            await wsock.send("Okay. File will be written over.") 
+                            write_over = True 
+                        break 
+                        
+                await wsock.send("send your content now") 
+                content = wsock.recv() 
+                with open(q,"w") as f: 
+                    f.write(content) 
 
 #------------------------------------------------------------------------------------
 
