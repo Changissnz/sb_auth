@@ -33,8 +33,6 @@ class SBAuthServer:
             while not valid or user_idn == "": 
                 user_idn,valid,is_new_user = await self.user_login(wsock,is_new_user) 
                 # case: invalid input, user already exists. Quit this iteration.
-                print("USER IDN: ",user_idn) 
-                print("VA: ",valid,is_new_user) 
                 if not valid and not is_new_user: 
                     return 
 
@@ -79,6 +77,9 @@ class SBAuthServer:
         else: 
             if user_idn in PROHIBITED_SB_AUTH_NAMES: 
                 await wsock.send("[!] name {} is prohibited".format(user_idn)) 
+                return "",False,False 
+
+            if not is_alphanumeric(user_idn): 
                 return "",False,False 
 
             if self.utable.user_exists(user_idn) and is_new_user:  
@@ -161,20 +162,6 @@ class SBAuthServer:
         q = ["COMM LANG",gen_name,content]
         await wsock.send(json.dumps(q))  
         return
-
-    def new_user(self): 
-        x = input("new user! Choose your name: ") 
-
-        if not is_alphanumeric(x): 
-            print("[!] username must contain only letters or numbers.")  
-            return self.new_user() 
-
-        # TODO: add 
-        if x in self.utable.t0: 
-            print("[!] username already taken") 
-            return self.new_user() 
-
-        return x,True   
 
 #------------------------------------------------------------------------------------
 
