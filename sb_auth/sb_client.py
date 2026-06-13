@@ -128,11 +128,8 @@ class SBAuthClient:
 
         q = self.r_ops if q0 == "r" else self.w_ops 
 
-        stat = False 
-        while not stat:  
-            stat = await q(wsock) 
-        
-        return q0 
+        stat = await q(wsock) 
+        return stat 
 
     async def r_ops(self,wsock): 
         fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
@@ -154,6 +151,30 @@ class SBAuthClient:
                 f.write(contents) 
         except: 
             return False 
+        return True 
+
+    async def w_ops(self,wsock): 
+        q = await wsock.recv() 
+        print(q) 
+        fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ") 
+
+        contents = None 
+        try: 
+            with open(fpath,"r") as f: 
+                contents_ = f.read() 
+                contents = contents_ 
+        except: 
+            pass 
+        
+        if type(contents) == type(None): 
+            print("invalid path.") 
+            return False 
+
+        fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] server side path: ") 
+        C = json.dumps([fpath2,contents]) 
+        await wsock.send(C)  
+        s = await wsock.recv() 
+        #print("SS: ",s)
         return True 
 
 sbc = SBAuthClient()

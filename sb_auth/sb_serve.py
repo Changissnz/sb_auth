@@ -198,31 +198,19 @@ class SBAuthServer:
                 await wsock.send(json.dumps(msg))  
                 break 
         else: 
-            write_over = False 
             while True: 
-                #await wsock.send("filepath for writing?") 
+                await wsock.send("source file for writing?") 
                 q = await wsock.recv() 
+                C = json.loads(q) 
+                fpath,content = C 
 
-                if os.path.isfile(q) and not write_over:  
-                    while True: 
-                        await wsock.send("file {} already exists. proceed (y) or new file (n)?".format(q)) 
-                        q = await wsock.recv() 
-
-                        q = q.lower() 
-
-                        if q not in {"y","n"}: 
-                            await wsock.send("invalid input. try again.") 
-                            continue 
-
-                        if q == "y": 
-                            await wsock.send("Okay. File will be written over.") 
-                            write_over = True 
-                        break 
-                        
-                await wsock.send("send your content now") 
-                content = await wsock.recv() 
-                with open(q,"w") as f: 
-                    f.write(content) 
+                try: 
+                    with open(fpath,"w") as f: 
+                        f.write(content) 
+                except: 
+                    await wsock.send("Error writing content.") 
+                    continue 
+                break
 
 #------------------------------------------------------------------------------------
 
