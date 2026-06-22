@@ -9,6 +9,7 @@ class SBAuthClient:
         self.is_new_user = False 
 
         self.finstat = False 
+        self.active_clp = None 
         return
 
     async def contact(self): 
@@ -103,10 +104,21 @@ class SBAuthClient:
         return True 
 
     async def send_passwd(self,wsock,num_iter):  
-        fp = filename_for_CL(self.addr,False)  
-        full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
-        gen_name = self.utable.user_to_X(self.addr,"g-name")  
-        q = process_CommLang_generator(full_fp,gen_name,num_iter)
+
+        user_str = filename_for_CL(self.addr,False) 
+
+        if type(self.active_clp) == type(None): 
+            fp = filename_for_CL(self.addr,False)  
+            full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
+            self.active_clp = CommLangParser(full_fp) 
+            self.active_clp.process_file() 
+
+        gen_name = self.utable.user_to_X(self.addr,"g-name")
+        prev_elements = self.utable.user_to_X(self.addr,"# iterations")
+        total_elements = prev_elements + num_iter 
+        q = process_CommLang_generator(self.active_clp,gen_name,\
+            total_elements+1,num_iter)
+
         self.utable.update_user(self.addr,num_iter)
         s = vector_to_string(q,cr)
         await wsock.send(s) 

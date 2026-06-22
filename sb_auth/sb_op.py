@@ -47,12 +47,19 @@ def verify_CommLang_file(f,gen_name):
 if num_iter = 0: checks generator first 50 outputs are real numbers. 
 otherwise: outputs `num_iter` values 
 '''  
-def process_CommLang_generator(f,generator_name,num_iter=0):   
-    assert os.path.isfile(f) 
+def process_CommLang_generator(f,generator_name,num_iter=0,output_last=0):
+    if type(f) == str: 
+        assert os.path.isfile(f) 
+        clp = CommLangParser(f) 
+        clp.process_file() 
+    else: 
+        assert type(f) == CommLangParser
+        clp = f 
+
     assert num_iter >= 0 
 
     excluded_types = {complex,np.complex64,np.complex128}
-    def vfunc(G_): 
+    def vfunc(): 
         for _ in range(50): 
             try: 
                 x = G() 
@@ -62,17 +69,19 @@ def process_CommLang_generator(f,generator_name,num_iter=0):
                 return False 
         return True 
 
-    def nfunc(G_):
-        return [float(round(G_(),5)) for _ in range(num_iter)] 
+    def nfunc():
+        X = [] 
+        for _ in range(num_iter): 
+            r = G()
+            X.append(float(round(r,5))) 
+        return X[-output_last:]
 
     F = vfunc if num_iter == 0 else nfunc 
-    clp = CommLangParser(f) 
 
-    clp.process_file() 
     assert generator_name in clp.vartable, "got {}, available {}".format(generator_name,\
         set(clp.vartable.keys()))
 
     G = clp.vartable[generator_name]
+    G = MAIN_method_for_object(G) 
     assert type(G) in {FunctionType,MethodType} 
-
-    return F(G)
+    return F()

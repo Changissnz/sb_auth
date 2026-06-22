@@ -1,6 +1,0 @@
-scratch*.py
-__pycache__
-user_dir 
-.gitignore 
-server*.txt 
-client_dir 

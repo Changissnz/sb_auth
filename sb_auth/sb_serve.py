@@ -11,6 +11,7 @@ class SBAuthServer:
         self.action_queue = [] 
 
         self.socket2user = dict() 
+        self.user2clp = dict() 
 
     async def service(self): 
         async with websockets.serve(self.one_step, "0.0.0.0", DEFAULT_PORT):
@@ -19,7 +20,10 @@ class SBAuthServer:
 
     async def one_step(self,wsock): 
         while True: 
-            await self.one_step_(wsock)  
+            quit_stat = await self.one_step_(wsock)  
+            if quit_stat == -1: 
+                del self.socket2user[wsock] 
+                break 
 
     async def one_step_(self,wsock): 
         # case: new user 
@@ -43,7 +47,9 @@ class SBAuthServer:
             await self.verify_user(wsock,user_idn,is_new_user) 
             self.socket2user[wsock] = user_idn 
         else: 
-            await self.ask(wsock) 
+            quit_stat = await self.ask(wsock) 
+            if quit_stat: 
+                return -1 
 
     #--------------------------------- for client logging in 
 
@@ -77,7 +83,6 @@ class SBAuthServer:
                 return "",False,False 
 
             if self.utable.user_exists(user_idn) and is_new_user:  
-                print("USER {} DOES NOT EXIST.")
                 await wsock.send("[!] username already exists. try again.") 
                 return "", False,False 
             elif not self.utable.user_exists(user_idn) and not is_new_user: 
@@ -100,9 +105,14 @@ class SBAuthServer:
         if num_elements == 0: 
             return True 
 
-        fp = self.utable.user_to_X(user_idn,"cl file") 
-        full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
-        key = process_CommLang_generator(full_fp,gen_name,num_iter=num_elements)   
+        # user idn -> (commond file,generator name,\
+        #       number of iterations,number of times used) 
+        prev_elements = self.utable.user_to_X(user_idn,"# iterations")
+        total_elements = prev_elements + num_elements
+
+        clp = self.user2clp[user_idn] 
+        key = process_CommLang_generator(clp,gen_name,\
+            num_iter=total_elements,output_last=num_elements) 
         key = vector_to_string(key,cr) 
         self.utable.update_user(user_idn,num_elements) 
         u_gud_bruh = await self.cmp_key(wsock,key,num_elements) 
@@ -112,12 +122,14 @@ class SBAuthServer:
 
         await wsock.send("enter in your key of {} numbers: ".format(num_elements))
         key = await wsock.recv()
-
         stat = actual_key == key 
         return stat 
 
     """
     accept or deny user login 
+
+    return: 
+    - next key size, generator name, ?login stat?
     """
     def user_login_subproc(self,user_idn,is_new_user): 
         
@@ -129,27 +141,40 @@ class SBAuthServer:
             x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
 
             K = TimeBasedCommLangFileGenerator(x_,"rx",0.5,vector_files=[],\
-                comm_lang_files=[])
+                comm_lang_files=[],consistent_prng_output=True) 
             K.generate() 
             R = K.clp.single_output_generator_list()[-1] 
             stat = verify_CommLang_file(x_,R) 
 
-            try: self.utable.add_user(user_idn,x,R) 
+            try: 
+                self.utable.add_user(user_idn,x,R) 
             except: 
                 print("user already exists!") 
                 return 0,R,False 
 
             if not stat: 
                 print("invalid Comm Lang file.") 
+
+            self.load_CommLangParser_for_user(user_idn) 
             return 0,R,stat 
         
-        fp = self.utable.user_to_X(user_idn,"cl file") 
+        clp = self.load_CommLangParser_for_user(user_idn) 
         R = self.utable.user_to_X(user_idn,"g-name")
-        full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
-        q = process_CommLang_generator(full_fp,R,1)[0]  
+        q = process_CommLang_generator(clp,R,1)[0]  
         q_ = modulo_in_range(int(q),DEFAULT_SB_AUTH_KEYSIZE_RANGE)
         print("user {} key: next {} values".format(user_idn,q_)) 
         return q_,R,True
+
+    def load_CommLangParser_for_user(self,user_idn): 
+        if user_idn in self.user2clp: 
+            return self.user2clp[user_idn]
+
+        fp = self.utable.user_to_X(user_idn,"cl file") 
+        full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
+        clp = CommLangParser(full_fp) 
+        clp.process_file() 
+        self.user2clp[user_idn] = clp 
+        return self.user2clp[user_idn]
 
     async def send_new_key(self,wsock,user_idn): 
         fp = self.utable.user_to_X(user_idn,"cl file")
@@ -165,9 +190,15 @@ class SBAuthServer:
     # NOTE: rough draft 
 
     async def ask(self,wsock): 
-        op = await self.ask_for_op(wsock) 
-        await self.conduct_op(wsock,op) 
-
+        try: 
+            op = await self.ask_for_op(wsock) 
+            await self.conduct_op(wsock,op) 
+            return False 
+        except: 
+            #print("closed connection to {}".format(wsock)) 
+            return True 
+            pass 
+            
     async def ask_for_op(self,wsock): 
         op = None 
         while type(op) == type(None): 
@@ -215,8 +246,8 @@ class SBAuthServer:
                     continue 
                 break
         else: 
-            await wsock.close(code=4001, reason="Invalid")
-            return  
+            await wsock.close(code=1000, reason="Invalid")
+              
 
 #------------------------------------------------------------------------------------
 
