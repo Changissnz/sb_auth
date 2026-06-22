@@ -54,7 +54,7 @@ class SBAuthClient:
                 response = await self.login(wsock)
                 continue 
 
-            elif message.strip() == "read (r) or write (w)?":
+            elif message.strip() == "read (r) or write (w) or quit (q)?":
                 await self.rw_ops(wsock) 
 
     async def login(self,wsock): 

@@ -1,5 +1,5 @@
 from .usr_table import * 
-from seqbuild.face.comm_lang import *  
+from seqbuild.face.easy_gen_struct import *  
 from morebs2.matrix_methods import is_number 
 
 # DEFAULT VARIABLES  
@@ -30,6 +30,9 @@ def verify_CommLang_file(f,gen_name):
 
         clp.process_command() 
         clp.check_finstat() 
+
+    if type(gen_name) == type(None): 
+        gen_name = clp.single_output_generator_list()[-1]
 
     clp.close() 
 
@@ -66,7 +69,8 @@ def process_CommLang_generator(f,generator_name,num_iter=0):
     clp = CommLangParser(f) 
 
     clp.process_file() 
-    assert generator_name in clp.vartable 
+    assert generator_name in clp.vartable, "got {}, available {}".format(generator_name,\
+        set(clp.vartable.keys()))
 
     G = clp.vartable[generator_name]
     assert type(G) in {FunctionType,MethodType} 

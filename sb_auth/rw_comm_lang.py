@@ -1,18 +1,14 @@
 """
 read/write operations for Seqbuild's Comm Lang language. 
 """
-import re
 import websockets
 import asyncio
 from .sb_op import * 
 import json 
 from morebs2.matrix_methods import vector_to_string,cr 
+from morebs2.globalls import is_alphanumeric 
 
 DEFAULT_PORT = 8765 
-
-def is_alphanumeric(s):
-    pattern = "^[a-zA-Z0-9]*$"
-    return bool(re.match(pattern, s))
 
 """
 outputs the program's conventional filename 

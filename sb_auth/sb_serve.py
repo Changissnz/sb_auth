@@ -22,7 +22,6 @@ class SBAuthServer:
             await self.one_step_(wsock)  
 
     async def one_step_(self,wsock): 
-
         # case: new user 
         if wsock not in self.socket2user: 
             # get user name from client 
@@ -93,12 +92,11 @@ class SBAuthServer:
             cl_file,gen_name,num_iter,num_times = self.utable.t0[user_idn]
             print("user {},generator {},iteration {},times used {}".format(user_idn,gen_name,num_iter,num_times)) 
         else: 
-            print("issuing key to new user {}")
+            print("issuing key to new user {}".format(user_idn)) 
             await self.send_new_key(wsock,user_idn) 
 
     async def user_login_key(self,wsock,user_idn,is_new_user): 
         num_elements,gen_name,stat = self.user_login_subproc(user_idn,is_new_user) 
-
         if num_elements == 0: 
             return True 
 
@@ -123,12 +121,17 @@ class SBAuthServer:
     """
     def user_login_subproc(self,user_idn,is_new_user): 
         
-        R = "G"
 
         # TODO: allow for other commonds 
         if is_new_user: 
-            x = "commond_two.txt" 
+            #x = "commond_two.txt"
+            x = "commond_{}.txt".format(user_idn)  
             x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
+
+            K = TimeBasedCommLangFileGenerator(x_,"rx",0.5,vector_files=[],\
+                comm_lang_files=[])
+            K.generate() 
+            R = K.clp.single_output_generator_list()[-1] 
             stat = verify_CommLang_file(x_,R) 
 
             try: self.utable.add_user(user_idn,x,R) 
@@ -136,12 +139,12 @@ class SBAuthServer:
                 print("user already exists!") 
                 return 0,R,False 
 
-
             if not stat: 
                 print("invalid Comm Lang file.") 
             return 0,R,stat 
         
         fp = self.utable.user_to_X(user_idn,"cl file") 
+        R = self.utable.user_to_X(user_idn,"g-name")
         full_fp = os.path.join(DEFAULT_SB_USER_DIR,fp) 
         q = process_CommLang_generator(full_fp,R,1)[0]  
         q_ = modulo_in_range(int(q),DEFAULT_SB_AUTH_KEYSIZE_RANGE)
@@ -168,10 +171,10 @@ class SBAuthServer:
     async def ask_for_op(self,wsock): 
         op = None 
         while type(op) == type(None): 
-            await wsock.send("read (r) or write (w)? ") 
+            await wsock.send("read (r) or write (w) or quit (q)? ") 
             q = await wsock.recv() 
             q = q.lower() 
-            if q not in {"r","w"}: 
+            if q not in {"r","w","q"}: 
                 await wsock.send("[!] wrong input. try again.") 
             else: 
                 print("gotem") 
@@ -180,7 +183,7 @@ class SBAuthServer:
         return op 
 
     async def conduct_op(self,wsock,op): 
-        assert op in {"r","w"} 
+        assert op in {"r","w","q"} 
         if op == "r": 
             while True: 
                 q = await wsock.recv() 
@@ -197,7 +200,7 @@ class SBAuthServer:
                 msg = ["True",content] 
                 await wsock.send(json.dumps(msg))  
                 break 
-        else: 
+        elif op == "w": 
             while True: 
                 await wsock.send("source file for writing?") 
                 q = await wsock.recv() 
@@ -211,6 +214,9 @@ class SBAuthServer:
                     await wsock.send("Error writing content.") 
                     continue 
                 break
+        else: 
+            await wsock.close(code=4001, reason="Invalid")
+            return  
 
 #------------------------------------------------------------------------------------
 
