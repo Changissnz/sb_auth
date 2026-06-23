@@ -9,6 +9,133 @@ DEFAULT_SB_AUTH_USER_SSIDE_DIRECTORY_PATH = os.path.join(DEFAULT_SB_USER_DIR,"se
 DEFAULT_SB_AUTH_USER_CSIDE_DIRECTORY_PATH = os.path.join(DEFAULT_SB_USER_DIR,"client_dir") 
 SB_AUTH_DIRECTORY_FILE_ROW_MAP = {"cl file":0,"g-name":1,"# iterations":2,"# times": 3} 
 
+def user_idn_to_default_permissions_file_path(user_idn): 
+    s = "permissions__{}.txt".format(user_idn) 
+    return os.path.join(DEFAULT_SB_USER_DIR,s) 
+
+"""
+contains information from a structured file for one client 
+"""
+class UserPermissions: 
+
+    S0 = "\t\t R E A D    F I L E    E X C L U S I O N"
+    S1 = "\t\t R E A D    F O L D E R    E X C L U S I O N"
+    S2 = "\t\t W R I T E   F I L E    E X C L U S I O N"
+    S3 = "\t\t W R I T E   F O L D E R    E X C L U S I O N"
+
+    def __init__(self,fp): 
+        assert os.path.isfile(fp)
+        self.fp = fp
+        self.file_obj = open(self.fp,"r")
+
+        self.process_phase = -1  
+        self.read_file_ex = [] 
+        self.read_folder_ex = [] 
+        self.write_file_ex = [] 
+        self.write_folder_ex = [] 
+
+        self.S = [UserPermissions.S0,UserPermissions.S1,\
+            UserPermissions.S2,UserPermissions.S3]
+        self.Q = [self.read_file_ex,self.read_folder_ex,\
+            self.write_file_ex,self.write_folder_ex]  
+
+        self.process() 
+        return 
+
+    def process(self):
+        end = self.file_obj.seek(0,os.SEEK_END) 
+
+        stat = True 
+        
+        ref_line = self.S[self.process_phase + 1] 
+        while self.file_obj.tell() != end: 
+            line = self.file_obj.readline().rstrip() 
+            if line == ref_line: 
+                self.process_phase += 1 
+            else: 
+                if line.strip() != "": 
+                    Q = self.Q[self.process_phase] 
+                    Q.append(line) 
+        self.file_obj.close() 
+        return 
+
+    def update(self,rw:str,P):
+        assert rw in {"r","w"}
+
+        is_folder = os.path.isdir(P) 
+        # case: folder  
+        if is_folder: 
+            q = self.read_folder_ex if rw == "r" else \
+                self.write_folder_ex 
+            q.append(P)             
+        else: 
+            if not os.path.isfile(P): 
+                print("invalid path @ {}".format(P))
+                return False 
+            q = self.read_file_ex if rw == "r" else \
+                self.write_file_ex 
+            q.append(P) 
+        return 
+
+    def rewrite_to_file(self): 
+        with open(self.fp,"w") as self.file_obj: 
+            for i in range(4): 
+                s = self.S[i] 
+                q = self.Q[i] 
+
+                self.file_obj.write(s + "\n\n") 
+                for q_ in q: 
+                    self.file_obj.write(q_ + "\n") 
+            return
+
+    def is_allowed(self,fpath,rw): 
+        assert rw in {"r","w"}
+
+        dpath = os.path.dirname(fpath) 
+
+        if rw == "r": 
+            Q = self.Q[:2] 
+        else: 
+            Q = self.Q[2:] 
+
+        if dpath in Q[1]: 
+            return False 
+
+        if fpath in Q[0]: 
+            return False 
+
+        return True 
+
+    @staticmethod 
+    def new_user_file(user_idn): 
+        fpath = user_idn_to_default_permissions_file_path(user_idn)
+
+        default_uperm = os.path.join(DEFAULT_SB_USER_DIR,"default_user_permissions.txt") 
+        contents = None 
+        with open(default_uperm,"r") as f: 
+            contents = f.readlines() 
+
+        with open(fpath,"w") as f: 
+            f.writelines(contents)
+        return
+
+    @staticmethod 
+    def clear_default_user_permissions():
+        fpath = os.path.join(DEFAULT_SB_USER_DIR,"default_user_permissions.txt") 
+
+        S = [UserPermissions.S0,UserPermissions.S1,\
+            UserPermissions.S2,UserPermissions.S3]
+
+        with open(fpath,"w") as f: 
+            for s in S: 
+                f.write(s + "\n\n") 
+        return
+
+#-------------------------------------------------------------------------------------------
+
+"""
+loads up either the server or client directory 
+"""
 class UserTable: 
 
     def __init__(self,is_server_side:bool):  
@@ -38,6 +165,11 @@ class UserTable:
     reads all users from user directory into maps  
     """
     def initial_read(self):
+        default_uperm = os.path.join(DEFAULT_SB_USER_DIR,"default_user_permissions.txt") 
+
+        # check for default user permissions 
+        if not os.path.isfile(default_uperm): 
+            UserPermissions.clear_default_user_permissions() 
 
         self.fetch_dirfile_path() 
         f = open(self.fpath,"r")

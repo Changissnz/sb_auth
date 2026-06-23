@@ -11,7 +11,12 @@ class SBAuthServer:
         self.action_queue = [] 
 
         self.socket2user = dict() 
+
+        # user -> Comm Lang parser 
         self.user2clp = dict() 
+
+        # user -> UserPermissions 
+        self.user2permissions = dict() 
 
     async def service(self): 
         async with websockets.serve(self.one_step, "0.0.0.0", DEFAULT_PORT):
@@ -46,6 +51,14 @@ class SBAuthServer:
 
             await self.verify_user(wsock,user_idn,is_new_user) 
             self.socket2user[wsock] = user_idn 
+
+            # add permissions 
+            if is_new_user: 
+                UserPermissions.new_user_file(user_idn)
+
+            fpath = user_idn_to_default_permissions_file_path(user_idn)
+            self.user2permissions = UserPermissions(fpath) 
+
         else: 
             quit_stat = await self.ask(wsock) 
             if quit_stat: 
@@ -238,6 +251,11 @@ class SBAuthServer:
                 break 
         return op 
 
+    def check_for_usr_permission(self,user_idn,fpath,rw:str): 
+        assert rw in {"r","w"} 
+        usp = self.user2permissions[user_idn] 
+        return usp.is_allowed(fpath,rw) 
+
     async def conduct_op(self,wsock,op): 
         assert op in {"r","w","q"} 
         if op == "r": 
@@ -250,9 +268,16 @@ class SBAuthServer:
             stat = await self.user_security_check(\
                 wsock,user_idn,is_new_user=False,is_login=False)
 
+            #   case: wrong key 
             if not stat: 
                 await wsock.send("u wrong, bruh. u ain't {}".format(user_idn)) 
                 return -1  
+
+            #   case: not permitted 
+            stat = self.check_for_usr_permission(user_idn,fpath,"r") 
+            if not stat: 
+                await wsock.send("u wrong, bruh. u prohibited from this.") 
+                return  
 
             with open(fpath,'r') as f: 
                 content = f.read() 
@@ -266,6 +291,12 @@ class SBAuthServer:
             q = await wsock.recv() 
             C = json.loads(q) 
             fpath,content = C 
+
+            #   case: not permitted 
+            stat = self.check_for_usr_permission(user_idn,fpath,"w") 
+            if not stat: 
+                await wsock.send("u wrong, bruh. u prohibited from this.") 
+                return  
 
             try: 
                 with open(fpath,"w") as f: 
