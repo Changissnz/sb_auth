@@ -56,7 +56,11 @@ class SBAuthClient:
                 continue 
 
             elif message.strip() == "read (r) or write (w) or quit (q)?":
-                await self.rw_ops(wsock) 
+                stat = await self.rw_ops(wsock) 
+                if stat == -1: 
+                    self.finstat = True 
+                    return 
+                continue 
 
     async def login(self,wsock): 
         s = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
@@ -83,8 +87,7 @@ class SBAuthClient:
         # case: provide the key 
         elif q[:4] == ["enter","in","your","key"]:  
             num_iter = int(q[5])
-            print("QX: ",num_iter) 
-            await self.send_passwd(wsock,num_iter)
+            await self.send_passwd(wsock,num_iter,is_login=True)
 
         return response
 
@@ -103,7 +106,7 @@ class SBAuthClient:
             return False 
         return True 
 
-    async def send_passwd(self,wsock,num_iter):  
+    async def send_passwd(self,wsock,num_iter,is_login:bool):  
 
         user_str = filename_for_CL(self.addr,False) 
 
@@ -114,7 +117,11 @@ class SBAuthClient:
             self.active_clp.process_file() 
 
         gen_name = self.utable.user_to_X(self.addr,"g-name")
-        prev_elements = self.utable.user_to_X(self.addr,"# iterations")
+
+        prev_elements = 0 
+        if is_login: 
+            prev_elements = self.utable.user_to_X(self.addr,"# iterations")
+
         total_elements = prev_elements + num_iter 
         q = process_CommLang_generator(self.active_clp,gen_name,\
             total_elements+1,num_iter)
@@ -127,34 +134,61 @@ class SBAuthClient:
 
     async def rw_ops(self,wsock): 
         # read/write
-        q0 = None  
+        rw_stat = None
+        fpath = None  
         while True: 
             q = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
             await wsock.send(q)  
             s = await wsock.recv()
             print(s) 
-
-            if s == ".": 
-                q0 = q 
+            if s.strip() == "enter in filepath:": 
+                rw_stat = q  
                 break 
 
-        q = self.r_ops if q0 == "r" else self.w_ops 
+            if q == "q": 
+                rw_stat = "q" 
+                break 
 
-        stat = await q(wsock) 
+        if rw_stat == "q": 
+            return -1  
+
+        F = self.r_ops if rw_stat == "r" else self.w_ops 
+        stat = await F(wsock) 
         return stat 
 
     async def r_ops(self,wsock): 
         fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ")
         await wsock.send(fpath) 
-        stat = await wsock.recv()
 
-        contents = None 
+        #while True: 
+        sec_check_prompt = await wsock.recv() 
+        sec_check_prompt = sec_check_prompt.strip().split(" ") 
+        assert sec_check_prompt[:4] == ["enter","in","your","key"]
+            #break  
+
+        num_iter = int(sec_check_prompt[5])
+        await self.send_passwd(wsock,num_iter,is_login=False) 
+
+        sec_check_two = await wsock.recv()
         try: 
-            q = json.loads(stat) 
-            contents = q[1] 
+            sec_check_two_ = json.loads(sec_check_two)
+            sec_check_two = sec_check_two_
         except: 
-            print(stat) 
+            pass
+
+        # case: correct key     
+        if type(sec_check_two) == list: 
+            ##fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] write out path? ") 
+            stat = await self.record_read_file(sec_check_two[1])
+            if not stat: 
+                print("could not write out contents to file.") 
+                return False
+            return True 
+        else: 
+            print("Security check failed.")
             return False 
+
+    async def record_read_file(self,contents):
 
         fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] write out path? ") 
         
@@ -168,7 +202,7 @@ class SBAuthClient:
     async def w_ops(self,wsock): 
         q = await wsock.recv() 
         print(q) 
-        fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x] ") 
+        fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x]: ") 
 
         contents = None 
         try: 
@@ -186,7 +220,7 @@ class SBAuthClient:
         C = json.dumps([fpath2,contents]) 
         await wsock.send(C)  
         s = await wsock.recv() 
-        #print("SS: ",s)
+        print(s)
         return True 
 
 sbc = SBAuthClient()

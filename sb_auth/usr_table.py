@@ -5,7 +5,7 @@ base_dir = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_SB_USER_DIR = os.path.join(base_dir, "user_data")
 os.makedirs(DEFAULT_SB_USER_DIR, exist_ok=True)
 
-DEFAULT_SB_AUTH_USER_SSIDE_DIRECTORY_PATH = os.path.join(DEFAULT_SB_USER_DIR,"user_dir") 
+DEFAULT_SB_AUTH_USER_SSIDE_DIRECTORY_PATH = os.path.join(DEFAULT_SB_USER_DIR,"server_dir") 
 DEFAULT_SB_AUTH_USER_CSIDE_DIRECTORY_PATH = os.path.join(DEFAULT_SB_USER_DIR,"client_dir") 
 SB_AUTH_DIRECTORY_FILE_ROW_MAP = {"cl file":0,"g-name":1,"# iterations":2,"# times": 3} 
 

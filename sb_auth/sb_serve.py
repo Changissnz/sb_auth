@@ -39,10 +39,10 @@ class SBAuthServer:
                     return 
 
             # verify user has correct passkey 
-            stat = await self.user_login_key(wsock,user_idn,is_new_user)
+            stat = await self.user_security_check(wsock,user_idn,is_new_user,is_login=True) 
             if not stat: 
                 await wsock.send("u wrong, bruh. u ain't {}".format(user_idn)) 
-                return 
+                return -1 
 
             await self.verify_user(wsock,user_idn,is_new_user) 
             self.socket2user[wsock] = user_idn 
@@ -100,20 +100,24 @@ class SBAuthServer:
             print("issuing key to new user {}".format(user_idn)) 
             await self.send_new_key(wsock,user_idn) 
 
-    async def user_login_key(self,wsock,user_idn,is_new_user): 
+    async def user_security_check(self,wsock,user_idn,is_new_user,is_login:bool): 
         num_elements,gen_name,stat = self.user_login_subproc(user_idn,is_new_user) 
         if num_elements == 0: 
             return True 
 
-        # user idn -> (commond file,generator name,\
-        #       number of iterations,number of times used) 
-        prev_elements = self.utable.user_to_X(user_idn,"# iterations")
+        prev_elements = 0 
+        
+        # case: is login: have to iterate through the previous iterations first 
+        if is_login: 
+            prev_elements = self.utable.user_to_X(user_idn,"# iterations")
+
         total_elements = prev_elements + num_elements
 
         clp = self.user2clp[user_idn] 
         key = process_CommLang_generator(clp,gen_name,\
             num_iter=total_elements,output_last=num_elements) 
         key = vector_to_string(key,cr) 
+
         self.utable.update_user(user_idn,num_elements) 
         u_gud_bruh = await self.cmp_key(wsock,key,num_elements) 
         return u_gud_bruh 
@@ -122,6 +126,12 @@ class SBAuthServer:
 
         await wsock.send("enter in your key of {} numbers: ".format(num_elements))
         key = await wsock.recv()
+
+        print("\t\tactual key")
+        print(actual_key)
+        print("\t\tkey given")
+        print(key)
+
         stat = actual_key == key 
         return stat 
 
@@ -141,7 +151,7 @@ class SBAuthServer:
             x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
 
             K = TimeBasedCommLangFileGenerator(x_,"rx",0.5,vector_files=[],\
-                comm_lang_files=[],consistent_prng_output=True) 
+                comm_lang_files=[],consistent_prng_output=True)  
             K.generate() 
             R = K.clp.single_output_generator_list()[-1] 
             stat = verify_CommLang_file(x_,R) 
@@ -192,12 +202,21 @@ class SBAuthServer:
     async def ask(self,wsock): 
         try: 
             op = await self.ask_for_op(wsock) 
-            await self.conduct_op(wsock,op) 
+            stat = await self.conduct_op(wsock,op) 
+
+            # case: security check failed 
+            if stat == -1: 
+                ip_addr,port = wsock.remote_address
+                print("security check to client {}/{} failed.".format(\
+                    ip_addr,port))
+                return True 
+
             return False 
         except: 
-            #print("closed connection to {}".format(wsock)) 
+            ip_addr,port = wsock.remote_address
+            print("closed connection to {}/{}".format(\
+                ip_addr,port)) 
             return True 
-            pass 
             
     async def ask_for_op(self,wsock): 
         op = None 
@@ -209,42 +228,56 @@ class SBAuthServer:
                 await wsock.send("[!] wrong input. try again.") 
             else: 
                 print("gotem") 
-                await wsock.send(".") 
-                op = q 
+                
+                if q in {"r","w"}:
+                    S = "\tenter in filepath:"
+                else: 
+                    S = "."
+                await wsock.send(S) 
+                op = q
+                break 
         return op 
 
     async def conduct_op(self,wsock,op): 
         assert op in {"r","w","q"} 
         if op == "r": 
-            while True: 
-                q = await wsock.recv() 
-                ##await wsock.send("filepath for reading?") 
-                
-                if not os.path.isfile(q): 
-                    await wsock.send("file {} does not exist".format(q)) 
-                    continue   
 
-                #await wsock.send("file {} does exist".format(q)) 
+            # user security check 
+            user_idn = self.socket2user[wsock] 
+            clp = self.user2clp[user_idn] 
 
-                with open(q,'r') as f: 
-                    content = f.read() 
-                msg = ["True",content] 
-                await wsock.send(json.dumps(msg))  
-                break 
+            fpath = await wsock.recv() 
+            stat = await self.user_security_check(\
+                wsock,user_idn,is_new_user=False,is_login=False)
+
+            if not stat: 
+                await wsock.send("u wrong, bruh. u ain't {}".format(user_idn)) 
+                return -1  
+
+            with open(fpath,'r') as f: 
+                content = f.read() 
+            msg = ["True",content] 
+            await wsock.send(json.dumps(msg))  
+            return 
+
         elif op == "w": 
-            while True: 
-                await wsock.send("source file for writing?") 
-                q = await wsock.recv() 
-                C = json.loads(q) 
-                fpath,content = C 
+            #while True: 
+            await wsock.send("source file for writing?") 
+            q = await wsock.recv() 
+            C = json.loads(q) 
+            fpath,content = C 
 
-                try: 
-                    with open(fpath,"w") as f: 
-                        f.write(content) 
-                except: 
-                    await wsock.send("Error writing content.") 
-                    continue 
-                break
+            try: 
+                with open(fpath,"w") as f: 
+                    f.write(content) 
+                print("YESST.")
+                await wsock.send("Wrote content.")
+            except: 
+                await wsock.send("Error writing content.") 
+                ##continue 
+            print("BREAKING")
+            #    break
+            return 
         else: 
             await wsock.close(code=1000, reason="Invalid")
               
