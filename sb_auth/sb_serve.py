@@ -61,8 +61,9 @@ class SBAuthServer:
                 UserPermissions.new_user_file(user_idn)
 
             fpath = user_idn_to_default_permissions_file_path(user_idn)
-            self.user2permissions = UserPermissions(fpath) 
-
+            self.user2permissions[user_idn] = UserPermissions(fpath) 
+            self.user2key_exp[user_idn] = modulo_in_range(int(self.G()),\
+                DEFAULT_SB_AUTH_INDEX_RANGE)    
         else: 
             quit_stat = await self.ask(wsock) 
             if quit_stat: 
@@ -126,9 +127,7 @@ class SBAuthServer:
         
         # case: is login: have to iterate through the previous iterations first 
         if is_login: 
-            prev_elements = self.utable.user_to_X(user_idn,"# iterations")
-            self.user2key_exp[user_idn] = modulo_in_range(int(self.G()),\
-                DEFAULT_SB_AUTH_INDEX_RANGE)                
+            prev_elements = self.utable.user_to_X(user_idn,"# iterations")    
 
         total_elements = prev_elements + num_elements
 
@@ -164,7 +163,7 @@ class SBAuthServer:
         K.generate() 
         R = K.clp.single_output_generator_list()[-1] 
         stat = verify_CommLang_file(x_,R) 
-        return x,R 
+        return x,R,stat 
 
     """
     accept or deny user login 
@@ -178,15 +177,18 @@ class SBAuthServer:
         # TODO: allow for other commonds 
         if is_new_user: 
 
-            x,R = self.new_CommLang_file_for_user(user_idn)
+            x,R,stat = self.new_CommLang_file_for_user(user_idn)
+
+            if not stat: 
+                print("invalid Comm Lang file.") 
+                return 0,R,stat 
+
             try: 
                 self.utable.add_user(user_idn,x,R) 
             except: 
                 print("user already exists!") 
                 return 0,R,False 
 
-            if not stat: 
-                print("invalid Comm Lang file.") 
 
             self.load_CommLangParser_for_user(user_idn) 
             return 0,R,stat 
@@ -220,15 +222,14 @@ class SBAuthServer:
         return
 
     async def update_key(self,wsock): 
+        user_idn = self.socket2user[wsock]
         prev_elements = self.utable.user_to_X(user_idn,"# iterations")
         if prev_elements < self.user2key_exp[user_idn]:
             await wsock.send("* no key update")
             return 
 
-        user_idn = self.socket2user[wsock]
-
-        x,R = self.new_CommLang_file_for_user(user_idn) 
-        self.utable.update_user(user_idn,x,R)
+        x,R,stat = self.new_CommLang_file_for_user(user_idn) 
+        self.utable.delta_user(user_idn,x,R)
         await self.send_new_key(wsock,user_idn)
 
     #------------------------------- for post-login  
@@ -275,6 +276,8 @@ class SBAuthServer:
 
     def check_for_usr_permission(self,user_idn,fpath,rw:str): 
         assert rw in {"r","w"} 
+        print("CHECKING USER PERMISSIONS")
+        print(self.user2permissions) 
         usp = self.user2permissions[user_idn] 
         return usp.is_allowed(fpath,rw) 
 
@@ -301,8 +304,15 @@ class SBAuthServer:
                 await wsock.send("u wrong, bruh. u prohibited from this.") 
                 return  
 
-            with open(fpath,'r') as f: 
-                content = f.read() 
+            content = None 
+            try: 
+                with open(fpath,'r') as f: 
+                    content = f.read() 
+            except: 
+                print("file does not exist")
+                await wsock.send("u wrong, bruh. file does not exist")
+                return 
+
             msg = ["True",content] 
             await wsock.send(json.dumps(msg))  
 

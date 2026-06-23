@@ -173,11 +173,12 @@ class SBAuthClient:
         await self.send_passwd(wsock,num_iter,is_login=False) 
 
         sec_check_two = await wsock.recv()
+        print(sec_check_two)
         try: 
             sec_check_two_ = json.loads(sec_check_two)
             sec_check_two = sec_check_two_
         except: 
-            pass
+            return False 
 
         # case: correct key     
         if type(sec_check_two) == list: 
@@ -186,13 +187,13 @@ class SBAuthClient:
             if not stat: 
                 print("could not write out contents to file.") 
                 return False
-            #return True 
         else: 
             print("Security check failed.")
             return False 
 
         x = await wsock.recv()
         self.update_key_proc(x) 
+        return True 
 
     async def record_read_file(self,contents):
 
