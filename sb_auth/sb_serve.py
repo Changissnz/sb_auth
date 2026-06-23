@@ -14,6 +14,10 @@ class SBAuthServer:
 
         # user -> Comm Lang parser 
         self.user2clp = dict() 
+        self.user2key_exp = dict() 
+
+        t = round(time.time(),5) 
+        self.G = PRNGDecimalDelta(float(t) % ((8 + 1/17) ** 7)).__next__ 
 
         # user -> UserPermissions 
         self.user2permissions = dict() 
@@ -123,6 +127,8 @@ class SBAuthServer:
         # case: is login: have to iterate through the previous iterations first 
         if is_login: 
             prev_elements = self.utable.user_to_X(user_idn,"# iterations")
+            self.user2key_exp[user_idn] = modulo_in_range(int(self.G()),\
+                DEFAULT_SB_AUTH_INDEX_RANGE)                
 
         total_elements = prev_elements + num_elements
 
@@ -148,6 +154,18 @@ class SBAuthServer:
         stat = actual_key == key 
         return stat 
 
+    def new_CommLang_file_for_user(self,user_idn): 
+
+        x = "commond_{}.txt".format(user_idn)  
+        x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
+
+        K = TimeBasedCommLangFileGenerator(x_,"rx",0.5,vector_files=[],\
+            comm_lang_files=[],consistent_prng_output=True)  
+        K.generate() 
+        R = K.clp.single_output_generator_list()[-1] 
+        stat = verify_CommLang_file(x_,R) 
+        return x,R 
+
     """
     accept or deny user login 
 
@@ -159,16 +177,8 @@ class SBAuthServer:
 
         # TODO: allow for other commonds 
         if is_new_user: 
-            #x = "commond_two.txt"
-            x = "commond_{}.txt".format(user_idn)  
-            x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
 
-            K = TimeBasedCommLangFileGenerator(x_,"rx",0.5,vector_files=[],\
-                comm_lang_files=[],consistent_prng_output=True)  
-            K.generate() 
-            R = K.clp.single_output_generator_list()[-1] 
-            stat = verify_CommLang_file(x_,R) 
-
+            x,R = self.new_CommLang_file_for_user(user_idn)
             try: 
                 self.utable.add_user(user_idn,x,R) 
             except: 
@@ -208,6 +218,18 @@ class SBAuthServer:
         q = ["COMM LANG",gen_name,content]
         await wsock.send(json.dumps(q))  
         return
+
+    async def update_key(self,wsock): 
+        prev_elements = self.utable.user_to_X(user_idn,"# iterations")
+        if prev_elements < self.user2key_exp[user_idn]:
+            await wsock.send("* no key update")
+            return 
+
+        user_idn = self.socket2user[wsock]
+
+        x,R = self.new_CommLang_file_for_user(user_idn) 
+        self.utable.update_user(user_idn,x,R)
+        await self.send_new_key(wsock,user_idn)
 
     #------------------------------- for post-login  
     # NOTE: rough draft 
@@ -283,6 +305,8 @@ class SBAuthServer:
                 content = f.read() 
             msg = ["True",content] 
             await wsock.send(json.dumps(msg))  
+
+            await self.update_key(wsock) 
             return 
 
         elif op == "w": 
@@ -305,9 +329,10 @@ class SBAuthServer:
                 await wsock.send("Wrote content.")
             except: 
                 await wsock.send("Error writing content.") 
-                ##continue 
-            print("BREAKING")
-            #    break
+                return 
+
+            # update key if expired 
+            await self.update_key(wsock) 
             return 
         else: 
             await wsock.close(code=1000, reason="Invalid")

@@ -44,7 +44,7 @@ class SBAuthClient:
                 if message[0].strip() == "COMM LANG": 
                     gen_name = message[1] 
                     cl_string = message[2] 
-                    stat = self.write_key_to_file(cl_string,gen_name)
+                    stat = self.write_key_to_file(cl_string,gen_name,False)
                     if not stat: 
                         self.finstat = True 
                         return 
@@ -91,7 +91,7 @@ class SBAuthClient:
 
         return response
 
-    def write_key_to_file(self,cl_string,gen_name):   
+    def write_key_to_file(self,cl_string,gen_name,is_update:bool):   
         user_str = filename_for_CL(self.addr,False) 
         fp = os.path.join(DEFAULT_SB_USER_DIR, user_str)  
 
@@ -100,9 +100,12 @@ class SBAuthClient:
         fobj.close() 
 
         try: 
-            self.utable.add_user(self.addr,user_str,gen_name) 
+            if not is_update: 
+                self.utable.add_user(self.addr,user_str,gen_name) 
+            else: 
+                self.utable.delta_user(self.addr,user_str,gen_name) 
         except: 
-            print("key already present for server/port.") 
+            print("key already present for server/port OR could not be updated") 
             return False 
         return True 
 
@@ -183,10 +186,13 @@ class SBAuthClient:
             if not stat: 
                 print("could not write out contents to file.") 
                 return False
-            return True 
+            #return True 
         else: 
             print("Security check failed.")
             return False 
+
+        x = await wsock.recv()
+        self.update_key_proc(x) 
 
     async def record_read_file(self,contents):
 
@@ -221,7 +227,29 @@ class SBAuthClient:
         await wsock.send(C)  
         s = await wsock.recv() 
         print(s)
+
+        if s == "Wrote content.": 
+            x = await wsock.recv() 
+            self.update_key_proc() 
+
         return True 
+
+    def update_key_proc(self,x): 
+
+        # check for update to key here 
+        try: 
+            x_ = json.loads(x) 
+
+            # 
+            if type(x_) == list: 
+                print("updating key")
+                #q = ["COMM LANG",gen_name,content]
+                gen_name = x_[1] 
+                cl_string = x_[2] 
+                self.write_key_to_file(cl_string,gen_name,is_update=True)
+        except: 
+            print(x) 
+
 
 sbc = SBAuthClient()
 asyncio.run(sbc.contact()) 
