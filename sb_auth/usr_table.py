@@ -44,7 +44,7 @@ class UserPermissions:
 
     def process(self):
         end = self.file_obj.seek(0,os.SEEK_END) 
-
+        self.file_obj.seek(0)
         stat = True 
         
         ref_line = self.S[self.process_phase + 1] 
@@ -52,6 +52,7 @@ class UserPermissions:
             line = self.file_obj.readline().rstrip() 
             if line == ref_line: 
                 self.process_phase += 1 
+                ref_line = self.S[(self.process_phase + 1) % 4]
             else: 
                 if line.strip() != "": 
                     Q = self.Q[self.process_phase] 
@@ -59,22 +60,32 @@ class UserPermissions:
         self.file_obj.close() 
         return 
 
-    def update(self,rw:str,P):
-        assert rw in {"r","w"}
+    def update(self,rw:str,P,to_add:bool=True):
+        assert rw in {"r","w"}, "got {}".format(rw)
 
         is_folder = os.path.isdir(P) 
+        q = None 
+ 
         # case: folder  
         if is_folder: 
             q = self.read_folder_ex if rw == "r" else \
                 self.write_folder_ex 
-            q.append(P)             
         else: 
             if not os.path.isfile(P): 
                 print("invalid path @ {}".format(P))
                 return False 
             q = self.read_file_ex if rw == "r" else \
                 self.write_file_ex 
+
+        if to_add: 
             q.append(P) 
+        else: 
+            if P not in q: 
+                print("exclusion does not exist for: {}".format(P)) 
+            i = q.index(P)
+            q.pop(i) 
+
+        self.rewrite_to_file() 
         return 
 
     def rewrite_to_file(self): 

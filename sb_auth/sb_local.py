@@ -33,6 +33,8 @@ class SBLocalService:
 
         # for server side 
         self.uperms = dict()  
+
+        self.preprocess()
         return 
 
     def load_user_permissions(self): 
@@ -48,20 +50,53 @@ class SBLocalService:
             self.load_user_permissions() 
         return 
 
-    def run(self): 
-        return -1 
+    def run(self):
+        mode = "user"
+        user_idn = None 
+        perm_op = None 
+
+        while True: 
+            #if type(extra) == type(None): 
+            if mode == "user": 
+                user_idn,i = self.display_list(mode)
+                mode = "perm view" 
+            elif mode == "perm view": 
+                perm_op = self.user_selection(user_idn)
+                #if perm_op == 
+                mode = "perm op"
+            else: 
+                op,i = self.display_list(mode,user_idn,perm_op)
+
+                if op == "b": 
+                    mode = "user" 
+                    continue 
+
+                uperm = self.uperms[user_idn] 
+                if op == "a": 
+                    to_add = True 
+                    S = CLIENT_PERMISSIONS_ADD_INPUT
+                else: 
+                    to_add = False
+                    S = CLIENT_PERMISSIONS_DELETE_INPUT
+
+                P = input(S)
+                uperm.update(perm_op[0],P,to_add=to_add)
+                mode = "user" 
+
+        return
 
     def display_list(self,list_type,*args): 
-        assert list_type in {"user","user op"}
+        assert list_type in {"user","perm op"}
         
         F = self.display_user_list_ if list_type == \
-            "user" else self.display
+            "user" else self.display_usr_perm_list
         i = 0 
         name = None 
 
         while True: 
-            stat = self.display_user_list_(i,**args)  
-            if stat.strip() == "": 
+            stat = F(i,*args)  
+            stat = stat.strip() 
+            if stat == "": 
                 i = i + 50 
                 if i >= len(self.user_list): 
                     i = 0 
@@ -71,7 +106,7 @@ class SBLocalService:
         return name,i 
     
     def user_selection(self,user_idn): 
-        if name not in self.user_list: 
+        if user_idn not in self.user_list: 
             print("* user does not exist!") 
             return None 
 
@@ -85,12 +120,10 @@ class SBLocalService:
 
     def user_op(self,user_idn,action): 
         assert action in {"ro","ri","wo","wi"}
+        return self.display_list("perm view",user_idn,action)
+
+    def display_usr_perm_list(self,ref_index,user_idn,action): 
         uperm = self.uperms[user_idn]
-
-        Q = None 
-        return self.display_list("user op",action)
-
-    def display_usr_perm_list(self,ref_index,action): 
 
         if action == "ro": 
             Q = uperm.read_folder_ex
@@ -104,7 +137,7 @@ class SBLocalService:
         else: 
             Q = uperm.write_file_ex
 
-        return display_loop(Q,ref_index,title="",\
+        return display_loop(Q,ref_index,title="permissions list",\
             input_str=CLIENT_PERMISSIONS_INPUT1)
 
     # REFACTOR THIS. 
@@ -116,10 +149,4 @@ class SBLocalService:
         return -1 
 
     def delete_server(self): 
-        return -1 
-
-    def add_rw_permission(self): 
-        return -1 
-
-    def remove_rw_permission(self): 
-        return -1 
+        return -1
