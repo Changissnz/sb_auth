@@ -30,6 +30,7 @@ class SBLocalService:
         self.is_server_side = is_server_side
         self.utable = UserTable(self.is_server_side)
         self.user_list = sorted(self.utable.t0.keys())
+        self.user_list.append("default")
 
         # for server side 
         self.uperms = dict()  
@@ -39,8 +40,14 @@ class SBLocalService:
 
     def load_user_permissions(self): 
         
-        for u in self.user_list: 
-            fp_user = user_idn_to_default_permissions_file_path(u)
+        default_fp = os.path.join(DEFAULT_SB_USER_DIR,"default_user_permissions.txt")
+
+        for u in self.user_list:
+            if u != "default":  
+                fp_user = user_idn_to_default_permissions_file_path(u)
+            else: 
+                fp_user = default_fp 
+                
             uperm = UserPermissions(fp_user)
             self.uperms[u] = uperm 
 
@@ -56,7 +63,6 @@ class SBLocalService:
         perm_op = None 
 
         while True: 
-            #if type(extra) == type(None): 
             if mode == "user": 
                 user_idn,i = self.display_list(mode)
                 mode = "perm view" 
@@ -85,7 +91,7 @@ class SBLocalService:
 
                 P = input(S)
                 uperm.update(perm_op[0],P,to_add=to_add)
-                mode = "user" 
+                mode = "perm view" 
 
         return
 

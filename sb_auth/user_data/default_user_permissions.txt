@@ -1,8 +1,0 @@
-		 R E A D    F I L E    E X C L U S I O N
-
-		 R E A D    F O L D E R    E X C L U S I O N
-
-		 W R I T E   F I L E    E X C L U S I O N
-
-		 W R I T E   F O L D E R    E X C L U S I O N
-
