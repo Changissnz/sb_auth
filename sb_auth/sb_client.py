@@ -269,7 +269,3 @@ class SBAuthClient:
                 self.write_key_to_file(cl_string,gen_name,is_update=True)
         except: 
             print(x) 
-
-
-sbc = SBAuthClient()
-asyncio.run(sbc.contact()) 

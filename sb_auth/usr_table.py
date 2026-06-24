@@ -188,6 +188,7 @@ class UserTable:
         file_end = f.tell()
         f.seek(0)
 
+        missing_keys = False 
         while f.tell() != file_end: 
             p = f.tell() 
             q = f.readline() 
@@ -203,15 +204,20 @@ class UserTable:
             assert user_idn not in self.t0 
 
             full_cl_filepath = os.path.join(DEFAULT_SB_USER_DIR,cl_file) 
-            assert os.path.isfile(full_cl_filepath) 
 
+            if not os.path.isfile(full_cl_filepath):
+                print("user {} is missing key".format(user_idn))
+                missing_keys = True 
+                continue 
             num_iter = int(num_iter) 
             num_times = int(num_times) 
             
             self.t0[user_idn] = (cl_file,gen_name,num_iter,num_times) 
             self.l0[len(self.l0)] = user_idn 
-
         f.close() 
+
+        if missing_keys: 
+            self.rewrite_usr_file() 
         return
 
     def update_user(self,user_idn,iterations):  

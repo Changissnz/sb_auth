@@ -365,6 +365,3 @@ class SBAuthServer:
               
 
 #------------------------------------------------------------------------------------
-
-sbs = SBAuthServer()
-asyncio.run(sbs.service())
