@@ -4,8 +4,8 @@ from .rw_comm_lang import *
 CLIENT_LIST_TITLE = "\t\t USER LIST"
 CLIENT_LIST_INPUT = "press (enter) for the next group of users OR\nenter in the name of a user: "
 
-CLIENT_PERMISSIONS_INPUT0 = "(ro) read folder (ri) read file (wo) write folder (wi) write file: "
-CLIENT_PERMISSIONS_INPUT1 = "(a) add | (d) delete | (b) go back | press (enter) for the next group"  
+CLIENT_PERMISSIONS_INPUT0 = "(ro) read folder (ri) read file (wo) write folder (wi) write file (b) go back: "
+CLIENT_PERMISSIONS_INPUT1 = "(a) add | (d) delete | (b) go back | press (enter) for the next group: "  
 
 CLIENT_PERMISSIONS_TITLE = "\t\t USER EXCLUSION: "
 CLIENT_PERMISSIONS_ADD_INPUT = "add exclusion: " 
@@ -62,7 +62,9 @@ class SBLocalService:
                 mode = "perm view" 
             elif mode == "perm view": 
                 perm_op = self.user_selection(user_idn)
-                #if perm_op == 
+                if perm_op == "b": 
+                    mode = "user"
+                    continue  
                 mode = "perm op"
             else: 
                 op,i = self.display_list(mode,user_idn,perm_op)
@@ -75,9 +77,11 @@ class SBLocalService:
                 if op == "a": 
                     to_add = True 
                     S = CLIENT_PERMISSIONS_ADD_INPUT
-                else: 
+                elif op == "d": 
                     to_add = False
                     S = CLIENT_PERMISSIONS_DELETE_INPUT
+                else: 
+                    continue 
 
                 P = input(S)
                 uperm.update(perm_op[0],P,to_add=to_add)
@@ -114,7 +118,7 @@ class SBLocalService:
             s = input(CLIENT_PERMISSIONS_INPUT0) 
             s = s.strip().lower()
 
-            if s in {"ro","ri","wo","wi"}: 
+            if s in {"ro","ri","wo","wi","b"}: 
                 break 
         return s 
 
@@ -123,6 +127,8 @@ class SBLocalService:
         return self.display_list("perm view",user_idn,action)
 
     def display_usr_perm_list(self,ref_index,user_idn,action): 
+        if user_idn not in self.uperms: 
+            return "b" 
         uperm = self.uperms[user_idn]
 
         if action == "ro": 
@@ -134,13 +140,15 @@ class SBLocalService:
         elif action == "wo": 
             Q = uperm.write_folder_ex 
 
-        else: 
+        elif action == "wi": 
             Q = uperm.write_file_ex
 
-        return display_loop(Q,ref_index,title="permissions list",\
+        else: 
+            return "" 
+
+        return display_loop(Q,ref_index,title="\t\t* exclusion list",\
             input_str=CLIENT_PERMISSIONS_INPUT1)
 
-    # REFACTOR THIS. 
     def display_user_list_(self,ref_index): 
         return display_loop(self.user_list,ref_index,title=CLIENT_LIST_TITLE,\
             input_str=CLIENT_LIST_INPUT) 

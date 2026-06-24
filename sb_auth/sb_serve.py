@@ -145,12 +145,13 @@ class SBAuthServer:
         await wsock.send("enter in your key of {} numbers: ".format(num_elements))
         key = await wsock.recv()
 
+        stat = actual_key == key 
+
         print("\t\tactual key")
         print(actual_key)
         print("\t\tkey given")
         print(key)
-
-        stat = actual_key == key 
+        print("EQUALS: ",stat) 
         return stat 
 
     def new_CommLang_file_for_user(self,user_idn): 
@@ -195,6 +196,7 @@ class SBAuthServer:
         
         clp = self.load_CommLangParser_for_user(user_idn) 
         R = self.utable.user_to_X(user_idn,"g-name")
+        ##I = self.utable.user_to_X(user_idn,"# iterations") 
         q = process_CommLang_generator(clp,R,1)[0]  
         q_ = modulo_in_range(int(q),DEFAULT_SB_AUTH_KEYSIZE_RANGE)
         print("user {} key: next {} values".format(user_idn,q_)) 
@@ -283,10 +285,11 @@ class SBAuthServer:
 
     async def conduct_op(self,wsock,op): 
         assert op in {"r","w","q"} 
+        user_idn = self.socket2user[wsock] 
+
         if op == "r": 
 
             # user security check 
-            user_idn = self.socket2user[wsock] 
             clp = self.user2clp[user_idn] 
 
             fpath = await wsock.recv() 
@@ -322,20 +325,33 @@ class SBAuthServer:
         elif op == "w": 
             #while True: 
             await wsock.send("source file for writing?") 
+
+            stat = await self.user_security_check(\
+                wsock,user_idn,is_new_user=False,is_login=False)
+
+            #   case: wrong key 
+            if not stat: 
+                await wsock.send("u wrong, bruh. u ain't {}".format(user_idn)) 
+                return -1 
+
+            await wsock.send("proceed. passed security check.")
+
             q = await wsock.recv() 
             C = json.loads(q) 
             fpath,content = C 
 
-            #   case: not permitted 
+                #   case: not permitted 
             stat = self.check_for_usr_permission(user_idn,fpath,"w") 
             if not stat: 
+                print("file {} not permitted for write.".format(fpath))
                 await wsock.send("u wrong, bruh. u prohibited from this.") 
                 return  
+            else: 
+                await wsock.send("proceed.")
 
             try: 
                 with open(fpath,"w") as f: 
                     f.write(content) 
-                print("YESST.")
                 await wsock.send("Wrote content.")
             except: 
                 await wsock.send("Error writing content.") 

@@ -6,7 +6,7 @@ from morebs2.matrix_methods import is_number
 PROHIBITED_COMMLANG_COMMANDS = {"load","show","chaintest","qualtest","open"} 
 PROHIBITED_SB_AUTH_NAMES = {"server_dir","client_dir","default",""} 
 DEFAULT_SB_AUTH_KEYSIZE_RANGE = [24,58]  
-DEFAULT_SB_AUTH_INDEX_RANGE = [0,5] # [627,1450]
+DEFAULT_SB_AUTH_INDEX_RANGE = [627,1450] # [0,5] #
 DEFAULT_SB_SKIPSIZE_RANGE = [0,3]  
 
 """

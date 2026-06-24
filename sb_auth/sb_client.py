@@ -25,9 +25,11 @@ class SBAuthClient:
     async def act(self,server):  
         async with websockets.connect(server) as wsock:
             print("Connected to server!")
-            while not self.finstat:  
+            while True: 
                 await self.recv(wsock)
-
+                if self.finstat:
+                    break
+                    
     async def recv(self,wsock): 
         async for message in wsock:
             print(message) 
@@ -131,6 +133,8 @@ class SBAuthClient:
 
         self.utable.update_user(self.addr,num_iter)
         s = vector_to_string(q,cr)
+        print("\t\t sending key") 
+        print(s)
         await wsock.send(s) 
 
     #------------------------------- post login 
@@ -173,7 +177,6 @@ class SBAuthClient:
         await self.send_passwd(wsock,num_iter,is_login=False) 
 
         sec_check_two = await wsock.recv()
-        print(sec_check_two)
         try: 
             sec_check_two_ = json.loads(sec_check_two)
             sec_check_two = sec_check_two_
@@ -209,20 +212,37 @@ class SBAuthClient:
     async def w_ops(self,wsock): 
         q = await wsock.recv() 
         print(q) 
-        fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x]: ") 
 
-        contents = None 
-        try: 
-            with open(fpath,"r") as f: 
-                contents_ = f.read() 
-                contents = contents_ 
-        except: 
-            pass 
+        while True: 
+            fpath = await asyncio.get_running_loop().run_in_executor(None, input, "[x]: ") 
+
+            contents = None 
+            try: 
+                with open(fpath,"r") as f: 
+                    contents_ = f.read() 
+                    contents = contents_ 
+            except: 
+                pass 
+            
+            if type(contents) == type(None): 
+                print("invalid path.") 
+                continue 
+            break 
+
+        sec_check_prompt = await wsock.recv() 
+        sec_check_prompt = sec_check_prompt.strip().split(" ") 
+        assert sec_check_prompt[:4] == ["enter","in","your","key"]
+
+        num_iter = int(sec_check_prompt[5])
+        await self.send_passwd(wsock,num_iter,is_login=False) 
+
+        sec_check_two = await wsock.recv()
+        print(sec_check_two)
+
+        if sec_check_two[:8] != "proceed.": 
+            print("Security check failed.")
+            return False
         
-        if type(contents) == type(None): 
-            print("invalid path.") 
-            return False 
-
         fpath2 = await asyncio.get_running_loop().run_in_executor(None, input, "[x] server side path: ") 
         C = json.dumps([fpath2,contents]) 
         await wsock.send(C)  
@@ -231,8 +251,7 @@ class SBAuthClient:
 
         if s == "Wrote content.": 
             x = await wsock.recv() 
-            self.update_key_proc() 
-
+            self.update_key_proc(x)   
         return True 
 
     def update_key_proc(self,x): 
