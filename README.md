@@ -71,8 +71,8 @@ concerning them.
 
 ## The Identity Aspect 
 
-Websocket has the problem of authentication. If a username's Comm Lang file key for a  
-server is shared between `> 1` devices, those devices can all access the server under  
+Websocket has the problem of authentication. If a username's Comm Lang file key for a 
+server is shared between `> 1` devices, those devices can all access the server under 
 the same username.  
 
 For a server with a fixed IP address and port combination, a device can access it through 
@@ -84,7 +84,8 @@ The program used to generate Comm Lang key files is `seqbuild` @
 [seqbuild](https://www.github.com/changissnz/seqbuild). Specifically, the Comm Lang file 
 generator is @ the file `face/easy_gen_struct.py`. There may be instances where the key 
 may be a generator such that two different devices output different sequences of integers. 
-So the Comm Lang key file generator is not guaranteed to be stable. 
+This issue has to do with rounding differences. So the Comm Lang key file generator is not guaranteed to be stable. More testing is advised for the `sb_auth` program to be used 
+outside of local WiFi networks. 
 
 ## Usage 
 
