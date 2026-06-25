@@ -3,8 +3,10 @@ from .rw_comm_lang import *
 
 CLIENT_LIST_TITLE = "\t\t USER LIST"
 CLIENT_LIST_INPUT = "press (enter) for the next group of users OR\nenter in the name of a user: "
+CLIENT_LIST_INPUT1 = "press (enter) for the next group of users OR\nenter in the name of a user to DELETE them: "
 
-CLIENT_PERMISSIONS_INPUT0 = "(ro) read folder (ri) read file (wo) write folder (wi) write file (b) go back: "
+
+CLIENT_PERMISSIONS_INPUT0 = "(ro) read folder (ri) read file (wo) write folder (wi) write file (d) delete user (b) go back: "
 CLIENT_PERMISSIONS_INPUT1 = "(a) add | (d) delete | (b) go back | press (enter) for the next group: "  
 
 CLIENT_PERMISSIONS_TITLE = "\t\t USER EXCLUSION: "
@@ -30,7 +32,9 @@ class SBLocalService:
         self.is_server_side = is_server_side
         self.utable = UserTable(self.is_server_side)
         self.user_list = sorted(self.utable.t0.keys())
-        self.user_list.append("default")
+
+        if self.is_server_side: 
+            self.user_list.append("default")
 
         # for server side 
         self.uperms = dict()  
@@ -57,7 +61,13 @@ class SBLocalService:
             self.load_user_permissions() 
         return 
 
-    def run(self):
+    def run(self): 
+        if self.is_server_side: 
+            self.run__server_side() 
+        else: 
+            self.run__client_side() 
+
+    def run__server_side(self):
         mode = "user"
         user_idn = None 
         perm_op = None 
@@ -71,6 +81,10 @@ class SBLocalService:
                 if perm_op == "b": 
                     mode = "user"
                     continue  
+                elif perm_op == "d": 
+                    self.delete_one(user_idn) 
+                    mode = "user"
+                    continue 
                 mode = "perm op"
             else: 
                 op,i = self.display_list(mode,user_idn,perm_op)
@@ -94,6 +108,17 @@ class SBLocalService:
                 mode = "perm view" 
 
         return
+
+    def run__client_side(self): 
+
+        mode = "user"
+        user_idn = None 
+        perm_op = None 
+
+        while True: 
+            #if mode == "user": 
+            user_idn,i = self.display_list(mode)
+            self.delete_one(user_idn)
 
     def display_list(self,list_type,*args): 
         assert list_type in {"user","perm op"}
@@ -124,7 +149,7 @@ class SBLocalService:
             s = input(CLIENT_PERMISSIONS_INPUT0) 
             s = s.strip().lower()
 
-            if s in {"ro","ri","wo","wi","b"}: 
+            if s in {"ro","ri","wo","wi","b","d"}: 
                 break 
         return s 
 
@@ -156,11 +181,17 @@ class SBLocalService:
             input_str=CLIENT_PERMISSIONS_INPUT1)
 
     def display_user_list_(self,ref_index): 
+        if self.is_server_side: 
+            return display_loop(self.user_list,ref_index,title=CLIENT_LIST_TITLE,\
+                input_str=CLIENT_LIST_INPUT) 
         return display_loop(self.user_list,ref_index,title=CLIENT_LIST_TITLE,\
-            input_str=CLIENT_LIST_INPUT) 
+                input_str=CLIENT_LIST_INPUT1)  
 
-    def delete_client(self): 
-        return -1 
+    def delete_one(self,idn): 
+        self.utable.delete_user(idn) 
 
-    def delete_server(self): 
-        return -1
+        for (i,x) in enumerate(self.user_list): 
+            if x == idn: 
+                self.user_list.pop(i) 
+                break 
+        return 

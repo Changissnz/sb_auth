@@ -24,7 +24,12 @@ class UserPermissions:
     S3 = "\t\t W R I T E   F O L D E R    E X C L U S I O N"
 
     def __init__(self,fp): 
-        assert os.path.isfile(fp)
+        stat = os.path.isfile(fp)
+
+        # file does not exist 
+        if not stat: 
+            UserPermissions.new_user_file_(fp) 
+
         self.fp = fp
         self.file_obj = open(self.fp,"r")
 
@@ -120,7 +125,10 @@ class UserPermissions:
     @staticmethod 
     def new_user_file(user_idn): 
         fpath = user_idn_to_default_permissions_file_path(user_idn)
+        UserPermissions.new_user_file_(fpath) 
 
+    @staticmethod 
+    def new_user_file_(fpath): 
         default_uperm = os.path.join(DEFAULT_SB_USER_DIR,"default_user_permissions.txt") 
         contents = None 
         with open(default_uperm,"r") as f: 
@@ -252,6 +260,29 @@ class UserTable:
         self.t0[user_idn] = (cl_file,gen_name,0,0)   
         self.rewrite_usr_file() 
         return
+
+    def delete_user(self,user_idn): 
+        if user_idn in self.t0: 
+            del self.t0[user_idn] 
+
+        k_ = None 
+        for k,v in self.l0.items(): 
+            if v == user_idn: 
+                k_ = k
+                break 
+
+        if type(k_) != type(None):
+            del self.l0[k_]
+
+            l0 = dict()  
+            for k,v in self.l0.items(): 
+                if k > k_:
+                    l0[k - 1] = v 
+                else:  
+                    l0[k] = v 
+            self.l0 = l0 
+
+        self.rewrite_usr_file()
 
     def user_to_str_info(self,user_idn): 
         assert user_idn in self.t0 
