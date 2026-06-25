@@ -65,8 +65,9 @@ concerning them.
 
 - Client Side: 
     - username directory file is @ `user_data/client_dir`.  
-    - column layout is virtually identical to that of server side. 
-    - every server of IP address `I` and port `Q` is assigned a Comm Lang key file. 
+    - column layout is virtually identical to that of server side.  
+    - every server of IP address `I` and port `Q` is assigned a Comm Lang key file @ 
+    `user_data/server__I-Q.txt`. 
 
 ## The Identity Aspect 
 
