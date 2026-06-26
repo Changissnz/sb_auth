@@ -1,7 +1,5 @@
 # sb_auth (seqbuild Authenticator) 
 
-*Work in progress* 
-
 A WebSocket authentication schematic for a client-server model, using the `seqbuild` library. 
 
 Simple client-server layout. Authentication allows for file read/write operations to take 
@@ -77,6 +75,9 @@ the same username.
 
 For a server with a fixed IP address and port combination, a device can access it through 
 only one username, given how the file naming convention goes.  
+
+NOTE: both server and client instances should be running the same version of `seqbuild`, the 
+program responsible for key generation and PRNG execution. 
 
 ## Technicals Behind the Generator Key  
 
