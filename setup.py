@@ -5,7 +5,7 @@ with open('README.md') as f:
 
 setup(
     name='sb_auth',
-    version='0.0.7',
+    version='0.0.9',
     description='An implementation of a WebSocket authentication scheme, unsecured ws://',
     long_description=readme,
     author='Richard Pham',
