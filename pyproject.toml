@@ -1,13 +1,13 @@
 [project]
 name = "sb_auth"
-version = "0.0.9"
+version = "0.0.10"
 dependencies = [
 "numpy>=1.22.1",
 "matplotlib>=3.5.3",
 "scipy>=1.14.1",
 "morebs2>=0.1.94",
 "python-resources>=0.3",
-"seqbuild>=0.0.70",
+"seqbuild>=0.0.72",
 ]
 authors = [
   { name="Richard Pham", email="phamrichard45@gmail.com" },

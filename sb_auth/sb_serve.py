@@ -154,7 +154,15 @@ class SBAuthServer:
         print("EQUALS: ",stat) 
         return stat 
 
+    # NOTE: 'while' loop guarantees valid Comm Lang file generated
     def new_CommLang_file_for_user(self,user_idn): 
+        stat = False 
+
+        while not stat: 
+            x,R,stat = self.new_CommLang_file_for_user_(user_idn) 
+        return x,R,stat 
+
+    def new_CommLang_file_for_user_(self,user_idn): 
 
         x = "commond_{}.txt".format(user_idn)  
         x_ = os.path.join(DEFAULT_SB_USER_DIR,x) 
